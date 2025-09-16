@@ -1,32 +1,59 @@
-// index.js
 const express = require("express");
 const bodyParser = require("body-parser");
+const admin = require("firebase-admin");
+const { MessagingResponse } = require("twilio").twiml;
+const OpenAI = require("openai");
+require("dotenv").config();
 
+// Inicializar Firebase
+const serviceAccount = require("./firebase-key.json");
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
+const db = admin.firestore();
+
+// Inicializar OpenAI
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+// Crear servidor Express
 const app = express();
-const PORT = process.env.PORT || 10000;
-
-// Middleware para leer los datos que Twilio envía
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
-// Ruta base (opcional) para verificar que el backend funciona
+// Endpoint de prueba
 app.get("/", (req, res) => {
-    res.send("🚀 LucaBot Backend funcionando correctamente!");
+  res.send("🚀 LucaBot Backend funcionando correctamente!");
 });
 
-// Endpoint para recibir mensajes de WhatsApp desde Twilio
-app.post("/whatsapp", (req, res) => {
-    const from = req.body.From; // número de quien envía
-    const body = req.body.Body; // mensaje enviado
+// Endpoint WhatsApp
+app.post("/whatsapp", async (req, res) => {
+  try {
+    const from = req.body.From;
+    const msg = req.body.Body;
 
-    console.log("Mensaje recibido de Twilio:", req.body);
+    await db.collection("mensajes").add({
+      usuario: from,
+      mensaje: msg,
+      fecha: new Date(),
+    });
 
-    // Respuesta automática
-    const respuesta = `<Response><Message>¡Hola! Te recibí correctamente.</Message></Response>`;
-    res.type("text/xml").send(respuesta);
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: msg }],
+    });
+
+    const respuesta = completion.choices[0].message.content;
+    const twiml = new MessagingResponse();
+    twiml.message(respuesta);
+    res.type("text/xml").send(twiml.toString());
+  } catch (error) {
+    console.error("Error:", error);
+    res.status(500).send("Error en el servidor");
+  }
 });
 
-// Arrancar el servidor
+// Puerto
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`Servidor escuchando en http://localhost:${PORT}`);
+  console.log(`Servidor escuchando en http://localhost:${PORT}`);
 });
