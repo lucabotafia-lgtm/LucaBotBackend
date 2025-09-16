@@ -1,18 +1,12 @@
-import express from "express";
-import bodyParser from "body-parser";
-import admin from "firebase-admin";
-import { MessagingResponse } from "twilio").twiml;
-import OpenAI from "openai";
-import fs from "fs";
-import dotenv from "dotenv";
+const express = require("express");
+const bodyParser = require("body-parser");
+const admin = require("firebase-admin");
+const { MessagingResponse } = require("twilio").twiml;
+const OpenAI = require("openai");
+require("dotenv").config();
 
-dotenv.config();
-
-// Inicializar Firebase desde archivo secreto en Render
-const serviceAccount = JSON.parse(
-  fs.readFileSync(process.env.FIREBASE_KEY_PATH, "utf8")
-);
-
+// Inicializar Firebase
+const serviceAccount = require("/etc/secrets/lucabot-4d000-firebase-adminsdk-fbsvc-a1a1e2ecf4.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
@@ -63,4 +57,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Servidor escuchando en http://localhost:${PORT}`);
 });
-
